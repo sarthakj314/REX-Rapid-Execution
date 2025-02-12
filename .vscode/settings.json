@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "charconv": "cpp",
+        "ratio": "cpp",
+        "array": "cpp",
+        "functional": "cpp",
+        "tuple": "cpp",
+        "type_traits": "cpp",
+        "utility": "cpp"
+    }
+}
