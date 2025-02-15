@@ -12,6 +12,9 @@ const std::string MAGENTA = "\033[35m";
 const std::string CYAN    = "\033[36m";
 const std::string WHITE   = "\033[37m";
 
+// Initialize static members
+bool MLM::DEBUG_MODE = false;
+bool var::DEBUG_MODE = false;
 
 /***********************************************************
  * MLM Implementation
@@ -65,7 +68,7 @@ MLM MLM::transpose() const {
 
 MLM MLM::matmul(const MLM& other) const {
     if (cols != other.rows) {
-        throw std::invalid_argument("Matrix dimensions do not match");
+        throw std::invalid_argument("Matmul: Matrix dimensions do not match");
     }
     MLM result(rows, other.cols);
     for (size_t i = 0; i < rows; ++i) {
@@ -80,7 +83,7 @@ MLM MLM::matmul(const MLM& other) const {
 
 MLM MLM::hadamard(const MLM& other) const {
     if (rows != other.rows || cols != other.cols) {
-        throw std::invalid_argument("Matrix dimensions do not match");
+        throw std::invalid_argument("Hadamard: Matrix dimensions do not match");
     }
     MLM result(rows, cols);
     for (size_t i = 0; i < rows; ++i) {
@@ -93,7 +96,7 @@ MLM MLM::hadamard(const MLM& other) const {
 
 MLM MLM::add(const MLM& other) const {
     if (rows != other.rows || cols != other.cols) {
-        throw std::invalid_argument("Matrix dimensions do not match");
+        throw std::invalid_argument("Add: Matrix dimensions do not match");
     }
     MLM result(rows, cols);
     for (size_t i = 0; i < rows; ++i) {
@@ -106,7 +109,7 @@ MLM MLM::add(const MLM& other) const {
 
 MLM MLM::subtract(const MLM& other) const {
     if (rows != other.rows || cols != other.cols) {
-        throw std::invalid_argument("Matrix dimensions do not match");
+        throw std::invalid_argument("Subtract: Matrix dimensions do not match");
     }
     MLM result(rows, cols);
     for (size_t i = 0; i < rows; ++i) {
@@ -211,7 +214,7 @@ double MLM::min() const {
 }
 
 double MLM::mean() const {
-    return sum() / (rows * cols);
+    return sum() * (1.0 / (rows * cols));
 }
 
 double MLM::median() const {
@@ -283,13 +286,23 @@ bool MLM::operator==(const MLM& other) const {
 
 // I/O
 std::ostream& operator<<(std::ostream& os, const MLM& m) {
+    if (MLM::DEBUG_MODE) {
+        os << "[" << m.rows << "x" << m.cols << " matrix]\n";
+    }
     for (size_t i = 0; i < m.rows; ++i) {
         for (size_t j = 0; j < m.cols; ++j) {
-            os << m.at(i, j) << " ";
+            os << std::setw(10) << std::fixed << std::setprecision(4) << m.at(i, j) << " ";
         }
         os << std::endl;
     }
     return os;
+}
+
+// Add this implementation in the MLM class section
+size_t MLM::operator[](size_t i) const {
+    if (i == 0) return rows;
+    if (i == 1) return cols;
+    throw std::out_of_range("MLM::operator[] index out of range");
 }
 
 /***********************************************************
@@ -297,22 +310,34 @@ std::ostream& operator<<(std::ostream& os, const MLM& m) {
  ***********************************************************/
 
 // Constructors
-var::var(const MLM& val, bool is_input) {
+var::var(const MLM& val) {
     _value = val;
     operation = "";
     parents = {};
     degree = 0;
     _grad = MLM::zeros(_value.num_rows(), _value.num_cols());
-    is_input = is_input;
+    is_input = false;
+    frozen = false;
 }
 
-var::var(const MLM& val, std::string op, std::vector<var*> p, bool is_input) {
+var::var(const std::vector<std::vector<double>>& data) {
+    _value = MLM(data);
+    operation = "";
+    parents = {};
+    degree = 0;
+    _grad = MLM::zeros(_value.num_rows(), _value.num_cols());
+    is_input = false;
+    frozen = false;
+}
+
+var::var(const MLM& val, std::string op, std::vector<var*> p) {
     _value = val;
     operation = op;
     parents = p;
     degree = 0;
     _grad = MLM::zeros(_value.num_rows(), _value.num_cols());
-    is_input = is_input;
+    is_input = false;
+    frozen = false;
 }
 
 var::var(const var& other) {
@@ -321,30 +346,60 @@ var::var(const var& other) {
     parents = other.parents;
     degree = other.degree;
     _grad = other._grad;
+    is_input = other.is_input;
+    frozen = other.frozen;
 }
 
 // Assignment
 var& var::operator=(const var& rhs) {
+    if (this == &rhs) return *this;
     _value = rhs._value;
+    _grad = rhs._grad;
     operation = rhs.operation;
     parents = rhs.parents;
     degree = rhs.degree;
-    _grad = rhs._grad;
     is_input = rhs.is_input;
+    frozen = rhs.frozen;
     return *this;
 }
 
 var& var::operator=(const MLM& m) {
     _value = m;
-    _grad = MLM::zeros(m.num_rows(), m.num_cols());
+    _grad = MLM::zeros(m[0], m[1]);
     operation = "";
     parents = {};
     degree = 0;
     is_input = false;
+    frozen = false;
     return *this;
 }
 
+// set properties
+void var::freeze() {
+    frozen = true;
+}
+
+void var::unfreeze() {
+    frozen = false;
+}
+
+void var::set_input(bool is_input) {
+    this->is_input = is_input;
+}
+
 // Accessors
+size_t var::num_rows() const {
+    return _value.num_rows();
+}
+
+size_t var::num_cols() const {
+    return _value.num_cols();
+}
+
+size_t var::num_elements() const {
+    return _value.num_rows() * _value.num_cols();
+}
+
 const MLM& var::value() const {
     return _value;
 }
@@ -363,6 +418,23 @@ const std::vector<var*>& var::get_parents() const {
 
 bool var::get_type() const {
     return is_input;
+}
+
+int var::get_degree() const {
+    return degree;
+}
+
+// static constructors
+var var::ones(size_t rows, size_t cols) {
+    return var(MLM::ones(rows, cols));
+}
+
+var var::zeros(size_t rows, size_t cols) {
+    return var(MLM::zeros(rows, cols));
+}
+
+var var::identity(size_t n) {
+    return var(MLM::identity(n));
 }
 
 // MLM operations
@@ -531,15 +603,34 @@ MLM var::derivative_sigmoid(var* x, var* z, const MLM& grad) {
 MLM var::derivative_tanh(var* x, var* z, const MLM& grad) {
     auto TANH_DERIVATIVE = [](double x) -> double { return 1 - x * x; };
     MLM grad_x = z->_value.apply(TANH_DERIVATIVE);
-    return grad.hadamard(grad_x);
+        return grad.hadamard(grad_x);
+    }
+
+// Utility functions
+var& var::sum(){
+    var matmul1(MLM::ones(1, this->num_rows())); matmul1.freeze();
+    var matmul2(MLM::ones(this->num_cols(), 1)); matmul2.freeze();
+    var& result = matmul1.matmul(*this).matmul(matmul2);
+    return result;
+}
+
+var& var::mean(){
+    var& result = sum() * (1.0 / (_value.num_rows() * _value.num_cols()));
+    return result;
 }
 
 // Backpropagation
 void var::backward() {
-    // Initialize gradient accumulation map and set this node's gradient to identity
+    if (var::DEBUG_MODE) {
+        std::cout << CYAN << "\n=== Starting Backward Pass ===" << RESET << "\n";
+    }
+    
     std::unordered_map<var*, MLM> accum_grad;
     accum_grad[this] = MLM::ones(this->_value.num_rows(), this->_value.num_cols());
-
+    
+    if (var::DEBUG_MODE) {
+        std::cout << "Initialized gradient at output node:\n" << accum_grad[this] << "\n";
+    }
 
     // Queue and vector for BFS traversal and topological ordering
     std::queue<var*> Q;
@@ -568,6 +659,11 @@ void var::backward() {
     for (auto* node : topo_order) {
         if (node->parents.empty()) continue;
         MLM node_grad = accum_grad[node];
+
+        if (var::DEBUG_MODE) {
+            std::cout << "Processing node: " << node->operation << "\n";
+            std::cout << "Current gradient:\n" << node_grad << "\n";
+        }
 
         if (node->parents.size() == 1) {
             var* p = node->parents[0];
@@ -607,31 +703,32 @@ void var::backward() {
                 tie(g1, g2) = derivative_matmul(p1, p2, node_grad);
             }
             else if (node->operation == "hadamard") {
-                tie(g1, g2) = derivative_hadamard(p1, p2, node_grad);
-            }
-            else if (node->operation == "add") {
-                tie(g1, g2) = derivative_add(p1, p2, node_grad);
-            }
-            else if (node->operation == "sub") {
-                tie(g1, g2) = derivative_sub(p1, p2, node_grad);
-            }
+            tie(g1, g2) = derivative_hadamard(p1, p2, node_grad);
+        }
+        else if (node->operation == "add") {
+            tie(g1, g2) = derivative_add(p1, p2, node_grad);
+        }
+        else if (node->operation == "sub") {
+            tie(g1, g2) = derivative_sub(p1, p2, node_grad);
+        }
 
-            if (accum_grad.find(p1) == accum_grad.end()) {
-                accum_grad[p1] = g1;
-            } else {
-                accum_grad[p1] = accum_grad[p1].add(g1);
-            }
+        if (accum_grad.find(p1) == accum_grad.end()) {
+            accum_grad[p1] = g1;
+        } else {
+            accum_grad[p1] = accum_grad[p1].add(g1);
+        }
 
-            if (accum_grad.find(p2) == accum_grad.end()) {
-                accum_grad[p2] = g2;
-            } else {
-                accum_grad[p2] = accum_grad[p2].add(g2);
-            }
+        if (accum_grad.find(p2) == accum_grad.end()) {
+            accum_grad[p2] = g2;
+        } else {
+            accum_grad[p2] = accum_grad[p2].add(g2);
         }
     }
+}
 
     // Store accumulated gradients in each node
     for (auto & [ptr, grad] : accum_grad) {
+        if (ptr->frozen) continue;
         ptr->_grad = ptr->_grad.add(grad);
     }
 }
@@ -640,6 +737,8 @@ void var::step(double learning_rate) {
     // BFS traversal to get topological ordering
     std::queue<var*> Q;
     std::vector<var*> topo_order;
+
+    std::unordered_map<var*, int> visits;
     Q.push(this);
 
     while (!Q.empty()) {
@@ -648,7 +747,10 @@ void var::step(double learning_rate) {
         topo_order.push_back(node);
 
         for (var* parent : node->parents) {
-            Q.push(parent);
+            visits[parent]++;
+            if (visits[parent] == parent->degree) {
+                Q.push(parent);
+            }
         }
     }  
 
@@ -659,10 +761,19 @@ void var::step(double learning_rate) {
 }
 
 void var::zero_grad() {
+    if (DEBUG_MODE) {
+        std::cout << CYAN << "\nZeroing gradients..." << RESET << std::endl;
+    }
+
     // BFS traversal to get topological ordering
     std::queue<var*> Q;
     std::vector<var*> topo_order;
+    std::unordered_map<var*, int> visits;
     Q.push(this);
+
+    std::cout << "Node: " << *this << std::endl;
+    std::cout << "Parents of this: " << this->parents.size() << std::endl;
+    std::cout << "Parent 0: " << *(this->parents[0]) << std::endl;
 
     while (!Q.empty()) {
         var* node = Q.front();
@@ -670,12 +781,29 @@ void var::zero_grad() {
         topo_order.push_back(node);
 
         for (var* parent : node->parents) {
-            Q.push(parent);
+            visits[parent]++;
+            std::cout << "Parent has degree: " << (*parent).get_degree() << std::endl;
+            std::cout << "Visited it: " << visits[parent] << std::endl;
+            std::cout << "Parent: " << *parent << std::endl;
+            if (visits[parent] == parent->get_degree()) {
+                Q.push(parent);
+            }
         }
     }
 
     for (auto* node : topo_order) {
         node->_grad = MLM::zeros(node->_value.num_rows(), node->_value.num_cols());
+        if (DEBUG_MODE) {
+            std::cout << "Zeroing gradient for node with operation '" << node->operation 
+                      << "' and shape [" << node->_value.num_rows() << "x" 
+                      << node->_value.num_cols() << "]" << ", grad shape ["
+                      << node->_grad.num_rows() << "x" << node->_grad.num_cols() << "]"
+                      << std::endl;
+        }
+    }
+
+    if (DEBUG_MODE) {
+        std::cout << "Zeroed gradients for " << topo_order.size() << " nodes" << std::endl;
     }
 }
 
@@ -692,6 +820,7 @@ void var::draw_graph() const {
     
     while (!label_q.empty()) {
         const var* current = label_q.front();
+        std::cout << "Current node: " << *current << std::endl;
         label_q.pop();
         node_count++;
         
@@ -769,6 +898,14 @@ void var::draw_graph() const {
 }
 
 std::ostream& operator<<(std::ostream& os, const var& v) {
-    os << v.value();
+    if (var::DEBUG_MODE) {
+        os << "[var node: " << (v.operation.empty() ? (v.is_input ? "input" : "weight") : v.operation) << "]\n";
+        os << "Value:\n" << v.value();
+        os << "Gradient:\n" << v.grad();
+        os << "Parents: " << v.parents.size() << "\n";
+        os << "Degree: " << v.get_degree() << "\n";
+    } else {
+        os << v.value();
+    }
     return os;
 }

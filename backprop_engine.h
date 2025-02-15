@@ -54,18 +54,23 @@ private:
     size_t cols;
 
 public:
+    // Add static debug mode
+    static bool DEBUG_MODE;
     // Constructors
     MLM();
     MLM(size_t rows, size_t cols);
     MLM(const std::vector<std::vector<double>>& data);
     MLM(const MLM& other);
 
-    // Basic operations
+    // Accessors
     size_t num_rows() const;
     size_t num_cols() const;
+
+    // Basic operations
+    size_t operator[](size_t i) const;
     double& at(size_t i, size_t j);
     const double& at(size_t i, size_t j) const;
-    
+
     // MLM operations
     MLM transpose() const;
     MLM matmul(const MLM& other) const;  // Matrix multiplication
@@ -114,23 +119,42 @@ private:
     int degree;          // For topological sort
     std::vector<var*> parents; // Parent nodes in computation graph
     bool is_input;      // Whether this node is an input node
+    bool frozen;        // Whether this node is frozen
+
 public:
+    // Add static debug mode
+    static bool DEBUG_MODE;
     // Constructors
-    var(const MLM& val, bool is_input = false);
-    var(const MLM& val, std::string op, std::vector<var*> p, bool is_input = false);
+    var(const MLM& val);
+    var(const std::vector<std::vector<double>>& data);
+    var(const MLM& val, std::string op, std::vector<var*> p);
     var(const var& other);
 
     // Assignment
     var& operator=(const var& rhs);
     var& operator=(const MLM& m);
 
+    // set properties
+    void freeze();
+    void unfreeze();
+    void set_input(bool is_input);
+
     // Accessors
+    size_t num_rows() const;
+    size_t num_cols() const;
+    size_t num_elements() const;
     const MLM& value() const;
     const MLM& grad() const;
     const std::string& op() const;
     const std::vector<var*>& get_parents() const;
     bool get_type() const;
+    int get_degree() const;
     
+    // static constructors
+    static var ones(size_t rows, size_t cols);
+    static var zeros(size_t rows, size_t cols);
+    static var identity(size_t n);
+
     // MLM operations
     var& matmul(var& rhs);    // Matrix multiplication
     var& transpose();          // Matrix transpose
@@ -152,7 +176,6 @@ public:
     var& sigmoid();
     var& tanh();
 
-
     // Derivative helpers
     static tuple<MLM, MLM> derivative_matmul(var* x, var* y, const MLM& grad);
     static tuple<MLM, MLM> derivative_hadamard(var* x, var* y, const MLM& grad);
@@ -166,6 +189,10 @@ public:
     static MLM derivative_relu(var* x, const MLM& grad);
     static MLM derivative_sigmoid(var* x, var* z, const MLM& grad);
     static MLM derivative_tanh(var* x, var* z, const MLM& grad);
+
+    // Utility functions
+    var& sum();
+    var& mean();
 
     // Backpropagation
     void backward();

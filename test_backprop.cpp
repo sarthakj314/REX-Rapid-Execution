@@ -1,6 +1,8 @@
 #include "backprop_engine.h"
 #include <iostream>
 
+#define vdd std::vector<std::vector<double>>
+
 int main() {
     // Test 1: Basic MLM Operations
     std::cout << "\n=== Test 1: Basic MLM Operations ===\n";
@@ -73,9 +75,10 @@ int main() {
     std::cout << "\n=== Test 2: Automatic Differentiation ===\n";
     
     // Create computational graph: f = (x * W + b).relu()
-    var x(MLM({{1.0, 2.0}}), true);  // 1x2 input, is_input = true
-    var W(MLM({{1.0, 0.0}, {0.0, 1.0}}));  // 2x2 weights 
-    var b(MLM({{0.1, 0.1}}));  // 1x2 bias
+    var x(vdd{{1.0, 2.0}});  // 1x2 input, is_input = true
+    x.set_input(true);
+    var W(vdd{{1.0, 0.0}, {0.0, 1.0}});  // 2x2 weights 
+    var b(vdd{{0.1, 0.1}});  // 1x2 bias
     
     // Forward pass
     var h = x.matmul(W);
