@@ -5,147 +5,113 @@ A modern C++ implementation of automatic differentiation and neural network back
 ## Features
 
 ### Multi-Linear Map (MLM) Class
-- **Basic Operations**
-  - Matrix multiplication (`matmul`)
-  - Element-wise multiplication (`hadamard`)
-  - Addition and subtraction
-  - Transpose
-  - Scalar multiplication and addition
-
-- **Element-wise Functions**
-  - ReLU
-  - Sigmoid
-  - Tanh
-  - Custom function application
-
-- **Static Constructors**
-  - Zeros matrix
-  - Ones matrix
-  - Identity matrix
-
-- **Statistical Functions**
-  - Sum
-  - Mean
-  - Max/Min
-  - Median
-  - Mode
-  - Variance
-  - Standard deviation
+- Matrix operations (multiplication, addition, transpose, inverse)
+- Element-wise operations (hadamard product, activation functions)
+- Static constructors (zeros, ones, identity matrices)
+- Statistical functions (sum, mean, max/min)
 
 ### Variable (var) Class
-- **Automatic Differentiation**
-  - Forward pass computation
-  - Backward pass gradient computation
-  - Gradient accumulation
-  - Topological sorting for correct gradient flow
+- Automatic differentiation with backpropagation
+- Dynamic computational graph construction
+- Gradient computation and accumulation
+- Visualization of computational graphs
 
-- **Neural Network Operations**
-  - Matrix multiplication
-  - Bias addition
-  - Activation functions (ReLU, Sigmoid, Tanh)
-  - Loss computation
+## Getting Started
 
-- **Optimization**
-  - Gradient descent step
-  - Gradient zeroing
-  - Learning rate control
-
-- **Visualization**
-  - Pretty-printed computational graph
-  - Roman numeral node labeling
-  - Color-coded output
-  - Parent-child relationship display
-
-## Usage Example
-
-```cpp
-// Create input, weights, and bias
-var x(MLM({{1.0, 2.0}}), true);  // 1x2 input
-var W(MLM({{1.0, 0.0}, {0.0, 1.0}}));  // 2x2 weights
-var b(MLM({{0.1, 0.1}}));  // 1x2 bias
-
-// Forward pass: f = (x * W + b).relu()
-var h = x.matmul(W);
-var h_b = h + b;
-var out = h_b.relu();
-
-// Backward pass
-out.backward();
-
-// Optimization step
-double learning_rate = 0.1;
-out.step(learning_rate);
-
-// Zero gradients for next iteration
-out.zero_grad();
-
-// Visualize computational graph
-out.draw_graph();
-```
-
-## Installation
-
-### Requirements
+### Prerequisites
 - C++17 or later
-- Standard library only (no external dependencies)
+- A C++ compiler (g++ or clang++)
 
-### Building
+### Building the Project
 ```bash
+# Clone the repository
+git clone https://github.com/sarthakj314/backprop-engine.git
+cd backprop-engine
+
+# Build the linear regression example
+g++ -std=c++17 backprop_engine.cpp linear_regression.cpp -o linear_regression
+
+# Build the tests
 g++ -std=c++17 backprop_engine.cpp test_backprop.cpp -o test_backprop
 ```
 
-## API Reference
+### Running Examples
 
-### MLM Class
-```cpp
-class MLM {
-    // Constructors
-    MLM();
-    MLM(size_t rows, size_t cols);
-    MLM(const std::vector<std::vector<double>>& data);
-    
-    // Operations
-    MLM matmul(const MLM& other) const;
-    MLM hadamard(const MLM& other) const;
-    MLM add(const MLM& other) const;
-    MLM subtract(const MLM& other) const;
-    MLM transpose() const;
-    
-    // Scalar operations
-    MLM scale(double scalar) const;
-    MLM shift(double scalar) const;
-    
-    // Statistical functions
-    double sum() const;
-    double mean() const;
-    double variance() const;
-    // ... and more
-};
+#### Linear Regression
+```bash
+# Run the linear regression example
+./linear_regression
 ```
 
-### var Class
+The example:
+1. Generates synthetic data points from the plane y = 0.75x₁ + 3x₂ + 1
+2. Trains a linear regression model to find these coefficients
+3. Prints training progress and final results
+
+Example output:
+```
+Training linear regression...
+Epoch 200/2000
+    Loss: 0.0123
+    W1: 0.7489
+    W2: 2.9876
+    b: 0.9923
+...
+Final parameters:
+W1: 0.7501 (true: 0.75)
+W2: 2.9998 (true: 3.00)
+b: 1.0002 (true: 1.00)
+```
+
+#### Running Tests
+```bash
+# Run the test suite
+./test_backprop
+```
+
+### API Examples
+
+#### Creating Variables
 ```cpp
-class var {
-    // Constructors
-    var(const MLM& val, bool is_input = false);
-    var(const MLM& val, std::string op, std::vector<var*> p, bool is_input = false);
-    
-    // Operations
-    var& matmul(var& rhs);
-    var& operator+(var& rhs);
-    var& operator-(var& rhs);
-    var& operator*(var& rhs);
-    
-    // Activation functions
-    var& relu();
-    var& sigmoid();
-    var& tanh();
-    
-    // Training
-    void backward();
-    void step(double learning_rate);
-    void zero_grad();
-};
+// Create variables from data
+var x({{1.0, 2.0}, {3.0, 4.0}});  // 2x2 matrix
+var y = var::zeros(2, 1);          // 2x1 zero matrix
+var z = var::ones(1, 2);           // 1x2 ones matrix
+
+// Set properties
+x.set_name("x");                   // Name for visualization
+x.freeze();                        // Freeze gradients
+```
+
+#### Matrix Operations
+```cpp
+// Basic operations
+var a = x.matmul(y);              // Matrix multiplication
+var b = x + y;                    // Addition
+var c = x - y;                    // Subtraction
+var d = x.hadamard(y);            // Element-wise multiplication
+var e = x.transpose();            // Transpose
+var f = x.inv();                  // Matrix inverse
+
+// Activation functions
+var g = x.relu();                 // ReLU activation
+var h = x.sigmoid();              // Sigmoid activation
+var i = x.tanh();                 // Tanh activation
+```
+
+#### Training
+```cpp
+// Forward pass
+var pred = x.matmul(W) + b;
+var loss = mse_loss(pred, y);
+
+// Backward pass
+loss.zero_grad();                 // Zero all gradients
+loss.backward();                  // Compute gradients
+loss.step(learning_rate);         // Update parameters
+
+// Visualization
+loss.draw_graph();                // Visualize computational graph
 ```
 
 ## Implementation Details

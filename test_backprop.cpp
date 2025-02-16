@@ -4,112 +4,102 @@
 #define vdd std::vector<std::vector<double>>
 
 int main() {
-    // Test 1: Basic MLM Operations
-    std::cout << "\n=== Test 1: Basic MLM Operations ===\n";
-    
-    // Create two 2x2 matrices
-    std::vector<std::vector<double>> data1 = {{1.0, 2.0}, {3.0, 4.0}};
-    std::vector<std::vector<double>> data2 = {{0.5, 0.5}, {0.5, 0.5}};
-    
-    MLM m1(data1);
-    MLM m2(data2);
-    
-    std::cout << "Matrix 1:\n" << m1 << "\n";
-    std::cout << "Matrix 2:\n" << m2 << "\n";
-    
-    // Test matrix operations
-    std::cout << "Matrix multiplication:\n" << m1.matmul(m2) << "\n";
-    std::cout << "Matrix addition:\n" << m1.add(m2) << "\n";
-    std::cout << "Matrix hadamard product:\n" << m1.hadamard(m2) << "\n";
-    std::cout << "Matrix transpose:\n" << m1.transpose() << "\n";
-    std::cout << "Matrix scalar multiplication:\n" << m1.scale(2.0) << "\n";
-    std::cout << "Matrix scalar addition:\n" << m1.shift(1.0) << "\n";
 
-    // Test element-wise operations
-    auto relu = [](double x) -> double { return x > 0 ? x : 0; };
-    auto sigmoid = [](double x) { return 1.0 / (1.0 + exp(-x)); };
-    auto tanh = [](double x) { return ::tanh(x); };
+    var x(vdd{{1.0, 2.0}, {3.0, 4.0}});
+    var y(vdd{{0.5, 0.5}, {0.5, 0.5}});
+    std::cout << "x: " << x << std::endl;
+    std::cout << "y: " << y << std::endl;
 
-    std::cout << "ReLU:\n" << m1.apply(relu) << "\n";
-    std::cout << "Sigmoid:\n" << m1.apply(sigmoid) << "\n";
-    std::cout << "Tanh:\n" << m1.apply(tanh) << "\n";
+    // Test derivatives
+    std::cout << "\n=== Testing Derivatives ===\n";
 
-    // Test static constructors
-    std::cout << "2x2 zeros:\n" << MLM::zeros(2, 2) << "\n";
-    std::cout << "2x2 ones:\n" << MLM::ones(2, 2) << "\n";
-    std::cout << "2x2 identity:\n" << MLM::identity(2) << "\n";
+    // Test matmul derivative
+    std::cout << "\n--- Testing matmul derivative ---\n";
+    var x1(vdd{{1.0, 2.0}, {3.0, 4.0}});
+    var y1(vdd{{0.5, 0.5}, {0.5, 0.5}});
+    var z1 = x1.matmul(y1);
+    z1.backward();
+    std::cout << "dx1:\n" << x1.grad() << "\n";
+    std::cout << "dy1:\n" << y1.grad() << "\n";
+    z1.zero_grad();
 
-    // Test utility functions
-    std::cout << "Matrix 1 sum: " << m1.sum() << "\n";
-    std::cout << "Matrix 1 mean: " << m1.mean() << "\n";
-    std::cout << "Matrix 1 max: " << m1.max() << "\n";
-    std::cout << "Matrix 1 min: " << m1.min() << "\n";
+    // Test hadamard derivative
+    std::cout << "\n--- Testing hadamard derivative ---\n"; 
+    var x2(vdd{{1.0, 2.0}, {3.0, 4.0}});
+    var y2(vdd{{0.5, 0.5}, {0.5, 0.5}});
+    var z2 = x2.hadamard(y2);
+    z2.backward();
+    std::cout << "dx2:\n" << x2.grad() << "\n";
+    std::cout << "dy2:\n" << y2.grad() << "\n";
+    z2.zero_grad();
 
-    // Test more complex computational graphs
-    std::cout << "\n=== Test 1.5: Complex MLM Operations ===\n";
-    
-    // Create 3x3 matrices for more complex operations
-    MLM m3({{1,2,3}, {4,5,6}, {7,8,9}});
-    MLM m4({{9,8,7}, {6,5,4}, {3,2,1}});
+    // Test add derivative
+    std::cout << "\n--- Testing add derivative ---\n";
+    var x3(vdd{{1.0, 2.0}, {3.0, 4.0}});
+    var y3(vdd{{0.5, 0.5}, {0.5, 0.5}});
+    var z3 = x3 + y3;
+    z3.backward();
+    std::cout << "dx3:\n" << x3.grad() << "\n";
+    std::cout << "dy3:\n" << y3.grad() << "\n";
+    z3.zero_grad();
 
-    std::cout << "Matrix 3:\n" << m3 << "\n";
-    std::cout << "Matrix 4:\n" << m4 << "\n";
+    // Test subtract derivative
+    std::cout << "\n--- Testing subtract derivative ---\n";
+    var x4(vdd{{1.0, 2.0}, {3.0, 4.0}});
+    var y4(vdd{{0.5, 0.5}, {0.5, 0.5}});
+    var z4 = x4 - y4;
+    z4.backward();
+    std::cout << "dx4:\n" << x4.grad() << "\n";
+    std::cout << "dy4:\n" << y4.grad() << "\n";
+    z4.zero_grad();
 
-    // Test chained operations
-    MLM result = m3.matmul(m4).transpose().scale(0.5);
-    std::cout << "Chained operations (m3 * m4)^T * 0.5:\n" << result << "\n";
+    // Test scale derivative
+    std::cout << "\n--- Testing scale derivative ---\n";
+    var x5(vdd{{1.0, 2.0}, {3.0, 4.0}});
+    var z5 = x5 * 2.0;
+    z5.backward();
+    std::cout << "dx5:\n" << x5.grad() << "\n";
+    z5.zero_grad();
 
-    // Test element-wise operations with different activation functions
-    MLM activated = result.apply(sigmoid);
-    std::cout << "After sigmoid:\n" << activated << "\n";
+    // Test transpose derivative
+    std::cout << "\n--- Testing transpose derivative ---\n";
+    var x6(vdd{{1.0, 2.0}, {3.0, 4.0}});
+    var z6 = x6.transpose();
+    z6.backward();
+    std::cout << "dx6:\n" << x6.grad() << "\n";
+    z6.zero_grad();
 
-    // Test matrix operations with different shapes
-    MLM tall({{1,2}, {3,4}, {5,6}});  // 3x2
-    MLM wide({{1,2,3}, {4,5,6}});     // 2x3
+    // Test shift derivative
+    std::cout << "\n--- Testing shift derivative ---\n";
+    var x7(vdd{{1.0, 2.0}, {3.0, 4.0}});
+    var z7 = x7 + 1.0;
+    z7.backward();
+    std::cout << "dx7:\n" << x7.grad() << "\n";
+    z7.zero_grad();
 
-    std::cout << "Tall matrix:\n" << tall << "\n";
-    std::cout << "Wide matrix:\n" << wide << "\n";
-    std::cout << "Matrix multiplication (tall * wide):\n" << tall.matmul(wide) << "\n";
+    // Test ReLU derivative
+    std::cout << "\n--- Testing ReLU derivative ---\n";
+    var x8(vdd{{-1.0, 2.0}, {3.0, -4.0}});
+    var z8 = x8.relu();
+    z8.backward();
+    std::cout << "dx8:\n" << x8.grad() << "\n";
+    z8.zero_grad();
 
-    // Test 2: Automatic Differentiation
-    std::cout << "\n=== Test 2: Automatic Differentiation ===\n";
-    
-    // Create computational graph: f = (x * W + b).relu()
-    var x(vdd{{1.0, 2.0}});  // 1x2 input, is_input = true
-    x.set_input(true);
-    var W(vdd{{1.0, 0.0}, {0.0, 1.0}});  // 2x2 weights 
-    var b(vdd{{0.1, 0.1}});  // 1x2 bias
-    
-    // Forward pass
-    var h = x.matmul(W);
-    var h_b = h + b;
-    var out = h_b.relu();
-    
-    std::cout << "Forward pass result:\n" << out << "\n";
-    
-    // Backward pass
-    out.backward();
-    
-    std::cout << "Gradients:\n";
-    std::cout << "dx:\n" << x.grad() << "\n";
-    std::cout << "dW:\n" << W.grad() << "\n";
-    std::cout << "db:\n" << b.grad() << "\n";
+    // Test sigmoid derivative
+    std::cout << "\n--- Testing sigmoid derivative ---\n";
+    var x9(vdd{{1.0, 2.0}, {3.0, 4.0}});
+    var z9 = x9.sigmoid();
+    z9.backward();
+    std::cout << "dx9:\n" << x9.grad() << "\n";
+    z9.zero_grad();
 
-    // Test 3: Optimization Step
-    std::cout << "\n=== Test 3: Optimization Step ===\n";
-    
-    // Take a gradient step
-    double learning_rate = 0.1;
-    out.step(learning_rate);
-    
-    std::cout << "Updated W after gradient step:\n" << W.value() << "\n";
-    
-    // Zero out gradients for next iteration
-    out.zero_grad();
-    
-    // Test 4: Visualization
-    std::cout << "\n=== Test 4: Computational Graph ===\n";
-    out.draw_graph();
+    // Test tanh derivative
+    std::cout << "\n--- Testing tanh derivative ---\n";
+    var x10(vdd{{1.0, 2.0}, {3.0, 4.0}});
+    var z10 = x10.tanh();
+    z10.backward();
+    std::cout << "dx10:\n" << x10.grad() << "\n";
+    z10.zero_grad();
 
     return 0;
-} 
+}

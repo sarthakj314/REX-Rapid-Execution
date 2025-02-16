@@ -77,6 +77,7 @@ public:
     MLM hadamard(const MLM& other) const; // Element-wise multiplication
     MLM add(const MLM& other) const;
     MLM subtract(const MLM& other) const;
+    MLM inv() const;
     
     // Scalar operations
     MLM scale(double scalar) const;
@@ -118,8 +119,8 @@ private:
     std::string operation;// Operation that created this node
     int degree;          // For topological sort
     std::vector<var*> parents; // Parent nodes in computation graph
-    bool is_input;      // Whether this node is an input node
     bool frozen;        // Whether this node is frozen
+    std::string name;    // Name of the node
 
 public:
     // Add static debug mode
@@ -137,7 +138,8 @@ public:
     // set properties
     void freeze();
     void unfreeze();
-    void set_input(bool is_input);
+    void set_name(std::string name);
+    void set_degree(int degree);
 
     // Accessors
     size_t num_rows() const;
@@ -147,7 +149,6 @@ public:
     const MLM& grad() const;
     const std::string& op() const;
     const std::vector<var*>& get_parents() const;
-    bool get_type() const;
     int get_degree() const;
     
     // static constructors
@@ -159,7 +160,8 @@ public:
     var& matmul(var& rhs);    // Matrix multiplication
     var& transpose();          // Matrix transpose
     var& hadamard(var& rhs);   // Element-wise multiplication
-
+    var& inv();
+    
     // Arithmetic Operators
     var& operator+(var& rhs);
     var& operator+(double c);
